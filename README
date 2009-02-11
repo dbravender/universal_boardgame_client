@@ -1,0 +1,3 @@
+The Universal Boardgame Client is a nascent project with the goal of creating a way of playing board games over the internet much like ZunTzu (http://zuntzu.com) but in a cross platform way. ZunTzu is incredible, but unfortunately it's Windows only and closed source.  
+
+Requires pygame and rabbyt. Windows builds will be made available when we get to the point where we have something worth showing :-).

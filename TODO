@@ -1,0 +1,19 @@
+TODO
+----
+
+- Load ZunTzu.com's game box format (see http://zuntzu.com/files.htm)
+
+- Design a network protocol (preferably extensible and not tied to the underlying implementation)
+  - Leaning towards JSON:
+    {type: 'move', piece_id: id, x: x, y: y}
+    {type: 'rotate', piece_id: id, angle: angle}
+    ...
+
+- User interface
+  - Stacks
+    - Shuffling
+    - Manually reordering
+    - Private hands (similar to stacks)
+  - Dice
+
+

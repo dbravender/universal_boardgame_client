@@ -80,13 +80,17 @@ while running:
         elif event.type == pygame.MOUSEMOTION:
             
             if grabbed_point:
-                grabbed_point.x = event.pos[0] + offset_x
-                grabbed_point.y = event.pos[1] + offset_y
+                if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    grabbed_point.xy = ((event.pos[0] + offset_x) - (event.pos[0] + offset_x) % grabbed_point.width(), (event.pos[1] + offset_x) - (event.pos[1] + offset_x) % grabbed_point.height())
+                else:
+                    grabbed_point.x = event.pos[0] + offset_x
+                    grabbed_point.y = event.pos[1] + offset_y
                 
         elif event.type == pygame.MOUSEBUTTONUP:
             if grabbed_point:
                 grabbed_point.rgb = (1, 1, 1)
-                grabbed_point.xy = rabbyt.lerp((grabbed_point.x, grabbed_point.y), (grabbed_point.x - grabbed_point.x % grabbed_point.width(), grabbed_point.y - grabbed_point.y % grabbed_point.height()), dt=200)
+                if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    grabbed_point.xy = rabbyt.lerp((grabbed_point.x, grabbed_point.y), (grabbed_point.x - grabbed_point.x % grabbed_point.width(), grabbed_point.y - grabbed_point.y % grabbed_point.height()), dt=200)     
                 #grabbed_point.scale = rabbyt.lerp(1.25, 1, dt=200)
             grabbed_point = None
 

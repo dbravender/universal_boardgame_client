@@ -17,7 +17,6 @@ class Piece(rabbyt.Sprite):
 size = (800.0, 600)
 ratio = (size[0]/size[1])
 
-print ratio
 pygame.init()
 pygame.display.set_mode(size, pygame.OPENGL | pygame.DOUBLEBUF)
 rabbyt.set_viewport(size, projection=(0, 0, size[0], size[1]))
@@ -96,6 +95,3 @@ while running:
     rabbyt.render_unsorted(pieces)
     rabbyt.scheduler.pump()
     pygame.display.flip()
-
-def test():
-    print "hello? wtf"

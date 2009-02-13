@@ -113,9 +113,8 @@ while running:
                     offset_y = system_y - grabbed_piece.y
         elif event.type == pygame.MOUSEMOTION:
             if panning:
-                    viewport_x = original_vx - (system_x - panning_x)#(event.pos[0] - panning_x)
-                    viewport_y =  original_vy - (system_y - panning_y)#(event.pos[1] - panning_y)
-                    print viewport_x, viewport_y, original_vx, original_vy
+                    viewport_x = original_vx - (system_x - panning_x)
+                    viewport_y =  original_vy - (system_y - panning_y)
                     rabbyt.set_viewport(size, projection=(viewport_x, viewport_y, (size[0]-ratio*z) + viewport_x,size[1]-z+viewport_y))
             if grabbed_piece:
                 if pygame.key.get_mods() & pygame.KMOD_CTRL:

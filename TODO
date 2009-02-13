@@ -10,6 +10,8 @@ TODO
     ...
 
 - User interface
+  - Zooming
+    - Keeping the cursor centered in the viewport when zooming
   - Stacks
     - Shuffling
     - Manually reordering

@@ -1,5 +1,5 @@
 # Just a demo for now :-)
-
+import glob
 import pygame
 import rabbyt
 
@@ -14,6 +14,12 @@ class Viewport(object):
 
 class Piece(rabbyt.Sprite):
     def __init__(self, **kargs):
+        # back isn't understood by the Sprite class, so pop it out of the dict
+        self.back_texture = kargs.pop('back', None)
+        self.front_texture = kargs.get('texture', None)
+        self.flipped = False
+        # this must be a bug in rabbyt... why would textures be backwards by default...
+        kargs['tex_shape'] = [0, 0, 1, 1]
         rabbyt.Sprite.__init__(self, **kargs)
         self.animflag = False
     def animendcallback(self):
@@ -22,6 +28,12 @@ class Piece(rabbyt.Sprite):
         return self.right - self.left
     def height(self):
         return self.bottom - self.top
+    def flip(self):
+        self.flipped = not self.flipped
+        if self.flipped and self.back_texture:
+            self.texture = self.back_texture
+        else:
+            self.texture = self.front_texture
 
 size = (1240.0, 780)
 ratio = (size[0]/size[1])
@@ -31,15 +43,21 @@ pygame.display.set_mode(size, pygame.OPENGL | pygame.DOUBLEBUF)
 rabbyt.set_viewport(size, projection=(0, 0, size[0], size[1]))
 rabbyt.set_default_attribs()
 
-pieces = [Piece(xy=attributes[0], texture=attributes[1]) for attributes in
-        [((100, 100), 'red_viking.png'),
-         ((200, 50),  'green_viking.png'),
-         ((300, 150), 'island_tile.png'),
-         ((400, 100), 'island_tile.png')]]
+pieces = []
+
+for card_image in glob.glob('cards/*png'):
+    pieces.append(Piece(texture=card_image, back='cards/backs/back-red-150-2.png'))
+
+
+#pieces = [Piece(xy=attributes[0], texture=attributes[1], back=attributes[2]) for attributes in
+#        [((100, 100), 'red_viking.png',   'green_viking.png'),
+#         ((200, 50),  'green_viking.png', 'green_viking.png'),
+#         ((300, 150), 'island_tile.png',  'green_viking.png'),
+#         ((400, 100), 'island_tile.png',  'green_viking.png')]]
 grabbed_piece = None
 
 print "Click and drag the pieces. Scrollwheel to rotate pieces."
-
+location = rabbyt.Sprite()
 clock = pygame.time.Clock()
 running = True
 z = 0
@@ -68,9 +86,15 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             grabbed_piece = None
             # sort based on z-order
-            collisions = sorted(rabbyt.collisions.collide_single((system_x, system_y), pieces), cmp=lambda x, y: cmp(pieces.index(y), pieces.index(x)))
+            location = rabbyt.Sprite(x=system_x, y=system_y)
+            
+            collisions = sorted(rabbyt.collisions.aabb_collide_single(location, pieces), cmp=lambda x, y: cmp(pieces.index(y), pieces.index(x)))
             if collisions:
                 grabbed_piece = collisions[0]
+            
+            if grabbed_piece and event.button == 3:
+                grabbed_piece.flip()
+                break
             
             if grabbed_piece:
                #keep the list in z-order
@@ -131,10 +155,11 @@ while running:
                 #    grabbed_piece.xy = rabbyt.lerp((grabbed_piece.x, grabbed_piece.y), (grabbed_piece.x - grabbed_piece.x % grabbed_piece.width(), grabbed_piece.y - grabbed_piece.y % grabbed_piece.height()), dt=200)     
                 #grabbed_piece.scale = rabbyt.lerp(1.25, 1, dt=200)
             grabbed_piece = None
-            panning = False
-
+            panning = False  
+        
     rabbyt.set_time(pygame.time.get_ticks())
     rabbyt.clear()
+    location.render()
     rabbyt.render_unsorted(pieces)
     rabbyt.scheduler.pump()
     pygame.display.flip()

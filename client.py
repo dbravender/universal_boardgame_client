@@ -48,12 +48,6 @@ pieces = []
 for card_image in glob.glob('cards/*png'):
     pieces.append(Piece(texture=card_image, back='cards/backs/back-red-150-2.png'))
 
-
-#pieces = [Piece(xy=attributes[0], texture=attributes[1], back=attributes[2]) for attributes in
-#        [((100, 100), 'red_viking.png',   'green_viking.png'),
-#         ((200, 50),  'green_viking.png', 'green_viking.png'),
-#         ((300, 150), 'island_tile.png',  'green_viking.png'),
-#         ((400, 100), 'island_tile.png',  'green_viking.png')]]
 grabbed_piece = None
 
 print "Click and drag the pieces. Scrollwheel to rotate pieces."

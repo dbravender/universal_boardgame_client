@@ -1,6 +1,8 @@
 # Just a demo for now :-)
 import glob
-import pygame
+from pyglet.window import Window
+from pyglet import clock
+from pyglet import image
 import rabbyt
 
 class Piece(rabbyt.Sprite):
@@ -27,12 +29,13 @@ class Piece(rabbyt.Sprite):
             self.texture = self.front_texture
 
 class Game(object):
-    def __init__(self, width, height):
-        pygame.display.set_mode((width, height), pygame.OPENGL | pygame.DOUBLEBUF)
-        rabbyt.set_viewport((width, height), projection=(0, 0, width, height))
+    def __init__(self, window):
+        self.window = window
+        self.window.push_handlers(self.on_mouse_drag) #key_press, self.on_mouse_press)
+        rabbyt.set_viewport((window.width, window.height), projection=(0, 0, window.width, window.height))
         rabbyt.set_default_attribs()
-        self.size = (width, height)
-        self.ratio = float(width) / height
+        self.size = (window.width, window.height)
+        self.ratio = float(window.width) / window.height
         self.pieces = []
         self.grabbed_piece = None
         self.panning = False
@@ -51,19 +54,32 @@ class Game(object):
                                                    (self.size[0] - self.ratio * self.z) + self.viewport_x,
                                                    self.size[1] - self.z + self.viewport_y))
     
-    def handle_event(self, event):
-        if hasattr(event, 'pos'):
-            # translate the position from mouse coordinates to viewport coordinates
-            x_factor = float(event.pos[0]) / self.size[0]
-            y_factor = float(event.pos[1]) / self.size[1]
-            system_x = x_factor * (self.size[0] - self.ratio * self.z)
-            system_y = y_factor * (self.size[1] - self.z)
-            if not self.panning:
-                system_x += self.viewport_x
-                system_y += self.viewport_y
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            return False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        if not self.grabbed_piece:
+            #if #TODO: control key is pressed
+            #    self.z += scroll_y * 10
+            #else:
+            if True:
+                self.z += scroll_y
+            self.update_viewport()
+    
+    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        #self.viewport_x = self.original_vx - (system_x - self.panning_x)
+        #self.viewport_y = self.original_vy - (system_y - self.panning_y)
+        self.viewport_x -= dx
+        self.viewport_y += dy
+        self.update_viewport()
+    
+    def on_mouse_press(self, x, y, button, modifiers):
+        # translate the position from mouse coordinates to viewport coordinates
+        x_factor = float(x) / self.size[0]
+        y_factor = float(y) / self.size[1]
+        system_x = x_factor * (self.size[0] - self.ratio * self.z)
+        system_y = y_factor * (self.size[1] - self.z)
+        if not self.panning:
+            system_x += self.viewport_x
+            system_y += self.viewport_y
+        elif True:#event.type == pygame.MOUSEBUTTONDOWN:
             grabbed_piece = None
             # sort based on z-order
             location = rabbyt.Sprite(x=system_x, y=system_y)
@@ -83,24 +99,7 @@ class Game(object):
                 #self.grabbed_piece.scale = rabbyt.lerp(1, 1.25, dt=100, extend="reverse")
             
             # Have the scrollwheel zoom in and zoom out when not hovering over a piece
-            if not self.grabbed_piece:
-                if event.button == 1:
-                    self.panning = True
-                    self.original_vx = self.viewport_x
-                    self.original_vy = self.viewport_y
-                    (self.panning_x, self.panning_y) = (system_x - self.viewport_x, system_y - self.viewport_y)#(event.pos[0], event.pos[1])
-                if event.button == 4:
-                    if pygame.key.get_mods() & pygame.KMOD_CTRL:
-                        self.z += 100
-                    else:
-        	            self.z += 20
-                    self.update_viewport()
-                elif event.button == 5:
-                    if pygame.key.get_mods() & pygame.KMOD_CTRL:
-                        self.z -= 100
-                    else:
-                        self.z -= 20
-                    self.update_viewport()
+            
                 
             if event.button == 4 and self.grabbed_piece and self.grabbed_piece.animflag == False:
                 self.grabbed_piece.animflag = True
@@ -114,19 +113,19 @@ class Game(object):
                 if self.grabbed_piece:
                     self.offset_x = -(system_x - self.grabbed_piece.x)
                     self.offset_y = -(system_y - self.grabbed_piece.y)
-        elif event.type == pygame.MOUSEMOTION:
+        elif True: #event.type == pygame.MOUSEMOTION:
             if self.panning:
                     self.viewport_x = self.original_vx - (system_x - self.panning_x)
                     self.viewport_y =  self.original_vy - (system_y - self.panning_y)
                     self.update_viewport()
             if self.grabbed_piece:
-                if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                if True: #pygame.key.get_mods() & pygame.KMOD_CTRL:
                     self.grabbed_piece.xy = ((system_x + self.offset_x) - (system_x + self.offset_x) % self.grabbed_piece.width(), (system_y + self.offset_y) - (system_y + self.offset_y) % self.grabbed_piece.height())
                 else:
                     self.grabbed_piece.x = system_x + self.offset_x
                     self.grabbed_piece.y = system_y + self.offset_y
                 
-        elif event.type == pygame.MOUSEBUTTONUP:
+        elif True: #event.type == pygame.MOUSEBUTTONUP:
             if self.grabbed_piece:
                 self.grabbed_piece.rgba = (1, 1, 1, 1)
                 # this is causing pieces to slide somewhere else when I drop them now...
@@ -142,28 +141,24 @@ class Game(object):
     def render(self):
         pass
 
-pygame.init()
-
 print "Click and drag the pieces. Scrollwheel to rotate pieces."
-clock = pygame.time.Clock()
 
 def run():
-    running = True
-    game = Game(1240, 780)
+    clock.schedule(rabbyt.add_time)
+    window = Window(1024, 780)
+    game = Game(window)
 
-    while running:
-        clock.tick(40)
+    while not window.has_exit:
+        clock.tick()
+        window.dispatch_events()
+  
+        rabbyt.clear((0,0,0))
         
-        for event in pygame.event.get():
-            running &= game.handle_event(event)  
-        
-        #game.render()
-        rabbyt.set_time(pygame.time.get_ticks())
-        rabbyt.clear()
         rabbyt.render_unsorted(game.boards)
         rabbyt.render_unsorted(game.pieces)
         rabbyt.scheduler.pump()
-        pygame.display.flip()
+        
+        window.flip()
 
 import cProfile
 cProfile.run('run()', 'profile.out')

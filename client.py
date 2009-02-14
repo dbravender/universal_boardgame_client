@@ -41,6 +41,7 @@ class Game(object):
         self.viewport_x = 0
         self.viewport_y = 0
         self.z = 0
+        self.boards = [rabbyt.Sprite(texture='board.png')]
         for card_image in glob.glob('cards/*png'):
             self.pieces.append(Piece(texture=card_image, back='cards/backs/back-red-150-2.png'))
 
@@ -60,7 +61,7 @@ class Game(object):
             if not self.panning:
                 system_x += self.viewport_x
                 system_y += self.viewport_y
-        if event.type == pygame.QUIT:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             return False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             grabbed_piece = None
@@ -78,7 +79,7 @@ class Game(object):
                #keep the list in z-order
                 self.pieces.remove(self.grabbed_piece)
                 self.pieces.append(self.grabbed_piece)
-                self.grabbed_piece.rgb = (.5, .5, .5)
+                self.grabbed_piece.rgba = (.5, .5, .5, .75)
                 #self.grabbed_piece.scale = rabbyt.lerp(1, 1.25, dt=100, extend="reverse")
             
             # Have the scrollwheel zoom in and zoom out when not hovering over a piece
@@ -127,7 +128,7 @@ class Game(object):
                 
         elif event.type == pygame.MOUSEBUTTONUP:
             if self.grabbed_piece:
-                self.grabbed_piece.rgb = (1, 1, 1)
+                self.grabbed_piece.rgba = (1, 1, 1, 1)
                 # this is causing pieces to slide somewhere else when I drop them now...
                 #if pygame.key.get_mods() & pygame.KMOD_CTRL:
                 #    self.grabbed_piece.xy = rabbyt.lerp((self.grabbed_piece.x, self.grabbed_piece.y), (self.grabbed_piece.x - self.grabbed_piece.x % self.grabbed_piece.width(), self.grabbed_piece.y - self.grabbed_piece.y % self.grabbed_piece.height()), dt=200)     
@@ -137,23 +138,37 @@ class Game(object):
               
         # keep running
         return True
+    
+    def render(self):
+        pass
 
 pygame.init()
 
 print "Click and drag the pieces. Scrollwheel to rotate pieces."
 clock = pygame.time.Clock()
 
-running = True
-game = Game(1240, 780)
+def run():
+    running = True
+    game = Game(1240, 780)
 
-while running:
-    clock.tick(40)
-    
-    for event in pygame.event.get():
-        running &= game.handle_event(event)  
+    while running:
+        clock.tick(40)
         
-    rabbyt.set_time(pygame.time.get_ticks())
-    rabbyt.clear()
-    rabbyt.render_unsorted(game.pieces)
-    rabbyt.scheduler.pump()
-    pygame.display.flip()
+        for event in pygame.event.get():
+            running &= game.handle_event(event)  
+        
+        #game.render()
+        rabbyt.set_time(pygame.time.get_ticks())
+        rabbyt.clear()
+        rabbyt.render_unsorted(game.boards)
+        rabbyt.render_unsorted(game.pieces)
+        rabbyt.scheduler.pump()
+        pygame.display.flip()
+
+import cProfile
+cProfile.run('run()', 'profile.out')
+
+import pstats
+p = pstats.Stats('profile.out')
+p.strip_dirs().sort_stats(-1).print_stats()
+

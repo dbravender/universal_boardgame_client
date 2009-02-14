@@ -35,7 +35,7 @@ class Piece(rabbyt.Sprite):
         else:
             self.texture = self.front_texture
 
-size = (1240.0, 780)
+size = (1240.0, 780.0)
 ratio = (size[0]/size[1])
 
 pygame.init()
@@ -57,7 +57,6 @@ for card_image in glob.glob('cards/*png'):
 grabbed_piece = None
 
 print "Click and drag the pieces. Scrollwheel to rotate pieces."
-location = rabbyt.Sprite()
 clock = pygame.time.Clock()
 running = True
 z = 0
@@ -87,14 +86,12 @@ while running:
             grabbed_piece = None
             # sort based on z-order
             location = rabbyt.Sprite(x=system_x, y=system_y)
-            
             collisions = sorted(rabbyt.collisions.aabb_collide_single(location, pieces), cmp=lambda x, y: cmp(pieces.index(y), pieces.index(x)))
             if collisions:
                 grabbed_piece = collisions[0]
             
             if grabbed_piece and event.button == 3:
                 grabbed_piece.flip()
-                break
             
             if grabbed_piece:
                #keep the list in z-order
@@ -133,8 +130,8 @@ while running:
                 rabbyt.scheduler.add(rabbyt.get_time()+200, grabbed_piece.animendcallback)
             else:
                 if grabbed_piece:
-                    offset_x = system_x - grabbed_piece.x
-                    offset_y = system_y - grabbed_piece.y
+                    offset_x = -(system_x - grabbed_piece.x)
+                    offset_y = -(system_y - grabbed_piece.y)
         elif event.type == pygame.MOUSEMOTION:
             if panning:
                     viewport_x = original_vx - (system_x - panning_x)
@@ -159,7 +156,6 @@ while running:
         
     rabbyt.set_time(pygame.time.get_ticks())
     rabbyt.clear()
-    location.render()
     rabbyt.render_unsorted(pieces)
     rabbyt.scheduler.pump()
     pygame.display.flip()

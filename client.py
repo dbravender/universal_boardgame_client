@@ -1,13 +1,19 @@
-# Just a demo for now :-)
 import glob
 from pyglet.window import Window
 from pyglet import clock
 from pyglet import image
 import rabbyt
+import simplejson
 
 class Piece(rabbyt.Sprite):
+    @classmethod
+    def next_id(kls):
+        kls.id = getattr(kls, 'id', 0) + 1
+        return kls.id
+    
     def __init__(self, **kargs):
         # back isn't understood by the Sprite class, so pop it out of the dict
+        self.id = self.next_id()
         self.back_texture = kargs.pop('back', None)
         self.front_texture = kargs.get('texture', None)
         self.flipped = False
@@ -27,6 +33,14 @@ class Piece(rabbyt.Sprite):
             self.texture = self.back_texture
         else:
             self.texture = self.front_texture
+    def to_json(self):
+        return {'id': self.id,
+                    'texture': self.texture,
+                    'x': self.x,
+                    'y': self.y,
+                    'rot': self.rot} 
+    def drop(self):
+        print simplejson.dumps(self.to_json())
 
 class Game(object):
     def __init__(self, window):
@@ -128,6 +142,7 @@ class Game(object):
         elif True: #event.type == pygame.MOUSEBUTTONUP:
             if self.grabbed_piece:
                 self.grabbed_piece.rgba = (1, 1, 1, 1)
+                self.grabbed_piece.drop()
                 # this is causing pieces to slide somewhere else when I drop them now...
                 #if pygame.key.get_mods() & pygame.KMOD_CTRL:
                 #    self.grabbed_piece.xy = rabbyt.lerp((self.grabbed_piece.x, self.grabbed_piece.y), (self.grabbed_piece.x - self.grabbed_piece.x % self.grabbed_piece.width(), self.grabbed_piece.y - self.grabbed_piece.y % self.grabbed_piece.height()), dt=200)     
@@ -160,10 +175,10 @@ def run():
         
         window.flip()
 
-import cProfile
-cProfile.run('run()', 'profile.out')
+#import cProfile
+#cProfile.run('run()', 'profile.out')
 
-import pstats
-p = pstats.Stats('profile.out')
-p.strip_dirs().sort_stats(-1).print_stats()
-
+#import pstats
+#p = pstats.Stats('profile.out')
+#p.strip_dirs().sort_stats(-1).print_stats()
+run()

@@ -1,17 +1,29 @@
 import glob
+import os
 import pygame
 import rabbyt
+from py2exeutils import module_path
+from pprint import pprint
 import simplejson
+from multiprocessing import Process, Queue, freeze_support
+from multiprocessing.queues import Empty
 
 class Piece(rabbyt.Sprite):
     @classmethod
-    def next_id(kls):
-        kls.id = getattr(kls, 'id', 0) + 1
-        return kls.id
+    def register_id(kls, piece):
+        kls._id = getattr(kls, '_id', 0) + 1
+        if not hasattr(kls, '_items'):
+            kls._items = {}
+        kls._items[kls._id] = piece
+        return kls._id
+    
+    @classmethod
+    def items(kls):
+        return kls._items
     
     def __init__(self, **kargs):
         # back isn't understood by the Sprite class, so pop it out of the dict
-        self.id = self.next_id()
+        self.id = self.register_id(self)
         self.back_texture = kargs.pop('back', None)
         self.front_texture = kargs.get('texture', None)
         self.flipped = False
@@ -33,10 +45,10 @@ class Piece(rabbyt.Sprite):
             self.texture = self.front_texture
     def to_json(self):
         return {'id': self.id,
-                    'texture': self.texture,
-                    'x': self.x,
-                    'y': self.y,
-                    'rot': self.rot} 
+                'texture': self.texture,
+                'x': self.x,
+                'y': self.y,
+                'rot': self.rot} 
     def drop(self):
         print simplejson.dumps(self.to_json())
 
@@ -56,8 +68,8 @@ class Game(object):
         self.viewport_y = 0
         self.z = 0
         self.boards = [rabbyt.Sprite(texture='board.png')]
-        for card_image in glob.glob('cards/*png'):
-            self.pieces.append(Piece(texture=card_image, back='cards/backs/back-red-150-2.png'))
+        for card_image in glob.glob(os.path.join('cards', '*png')):
+            self.pieces.append(Piece(texture=card_image, back=os.path.join('cards', 'backs', 'back-red-150-2.png')))
 
     def update_viewport(self):
         rabbyt.set_viewport(self.size, projection=(self.viewport_x,
@@ -157,12 +169,14 @@ class Game(object):
     def render(self):
         pass
 
+
+rabbyt.data_directory = module_path()
 pygame.init()
 
 print "Click and drag the pieces. Scrollwheel to rotate pieces."
 clock = pygame.time.Clock()
 
-def run():
+def run(queue):
     running = True
     game = Game(1240, 780)
 
@@ -170,7 +184,18 @@ def run():
         clock.tick(40)
         
         for event in pygame.event.get():
-            running &= game.handle_event(event)  
+            running &= game.handle_event(event)
+        
+        try:
+            item = queue.get(False)
+            update = simplejson.loads(item)
+            for (key, value) in update.iteritems():
+                print Piece._items[update['id']], key, value
+                current = getattr(Piece._items[update['id']], key)
+                setattr(Piece._items[update['id']], key, rabbyt.lerp(current, value, dt=200))
+                
+        except Empty:
+            pass
         
         #game.render()
         rabbyt.set_time(pygame.time.get_ticks())
@@ -186,4 +211,8 @@ def run():
 #import pstats
 #p = pstats.Stats('profile.out')
 #p.strip_dirs().sort_stats(-1).print_stats()
-run()
+queue = Queue()
+if __name__ == '__main__':
+    freeze_support()
+    Process(target=run, args=(queue,)).start()
+    

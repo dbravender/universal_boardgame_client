@@ -1,7 +1,9 @@
 import glob
 import os
+import sys
 import pygame
 import rabbyt
+import socket
 from py2exeutils import module_path
 from pprint import pprint
 import simplejson
@@ -22,15 +24,17 @@ class Piece(rabbyt.Sprite):
         return kls._items
     
     def __init__(self, **kargs):
-        # back isn't understood by the Sprite class, so pop it out of the dict
         self.id = self.register_id(self)
+        # attributes that aren't understood by the Sprite class are popped out of the dict
+        self.game = kargs.pop('game', None)
         self.back_texture = kargs.pop('back', None)
         self.front_texture = kargs.get('texture', None)
         self.flipped = False
+        self.animflag = False
         # this must be a bug in rabbyt... why would textures be backwards by default...
         kargs['tex_shape'] = [0, 0, 1, 1]
         rabbyt.Sprite.__init__(self, **kargs)
-        self.animflag = False
+        
     def animendcallback(self):
         self.animflag = False
     def width(self):
@@ -49,11 +53,14 @@ class Piece(rabbyt.Sprite):
                 'x': self.x,
                 'y': self.y,
                 'rot': self.rot} 
-    def drop(self):
-        print simplejson.dumps(self.to_json())
-
+    def drop(self, outgoing_queue):
+        #pprint(self.to_json())
+        #print simplejson.dumps(self.to_json())
+        print "putting something on the queue ^^"
+        outgoing_queue.put(simplejson.dumps(self.to_json()) + "\r\n")
+        
 class Game(object):
-    def __init__(self, width, height):
+    def __init__(self, width, height, outgoing_queue):
         pygame.display.set_mode((width, height), pygame.OPENGL | pygame.DOUBLEBUF)
         rabbyt.set_viewport((width, height), projection=(0, 0, width, height))
         rabbyt.set_default_attribs()
@@ -67,6 +74,7 @@ class Game(object):
         self.viewport_x = 0
         self.viewport_y = 0
         self.z = 0
+        self.outgoing_queue = outgoing_queue
         self.boards = [rabbyt.Sprite(texture='board.png')]
         for card_image in glob.glob(os.path.join('cards', '*png')):
             self.pieces.append(Piece(texture=card_image, back=os.path.join('cards', 'backs', 'back-red-150-2.png')))
@@ -105,7 +113,7 @@ class Game(object):
                #keep the list in z-order
                 self.pieces.remove(self.grabbed_piece)
                 self.pieces.append(self.grabbed_piece)
-                self.grabbed_piece.rgba = (.5, .5, .5, .75)
+                #self.grabbed_piece.rgba = (1, .5, .5, .75)
                 #self.grabbed_piece.scale = rabbyt.lerp(1, 1.25, dt=100, extend="reverse")
             
             # Have the scrollwheel zoom in and zoom out when not hovering over a piece
@@ -155,7 +163,7 @@ class Game(object):
         elif event.type == pygame.MOUSEBUTTONUP:
             if self.grabbed_piece:
                 self.grabbed_piece.rgba = (1, 1, 1, 1)
-                self.grabbed_piece.drop()
+                self.grabbed_piece.drop(self.outgoing_queue)
                 # this is causing pieces to slide somewhere else when I drop them now...
                 #if pygame.key.get_mods() & pygame.KMOD_CTRL:
                 #    self.grabbed_piece.xy = rabbyt.lerp((self.grabbed_piece.x, self.grabbed_piece.y), (self.grabbed_piece.x - self.grabbed_piece.x % self.grabbed_piece.width(), self.grabbed_piece.y - self.grabbed_piece.y % self.grabbed_piece.height()), dt=200)     
@@ -170,30 +178,38 @@ class Game(object):
         pass
 
 
+# This makes it so loading images works on Windows
 rabbyt.data_directory = module_path()
 pygame.init()
 
 print "Click and drag the pieces. Scrollwheel to rotate pieces."
 clock = pygame.time.Clock()
 
-def run(queue):
+def run(outgoing_queue, incoming_queue):
     running = True
-    game = Game(1240, 780)
+    game = Game(1240, 780, outgoing_queue)
 
     while running:
+        import time
+        time.sleep(.05)
         clock.tick(40)
         
         for event in pygame.event.get():
             running &= game.handle_event(event)
         
         try:
-            item = queue.get(False)
-            update = simplejson.loads(item)
-            for (key, value) in update.iteritems():
-                print Piece._items[update['id']], key, value
-                current = getattr(Piece._items[update['id']], key)
-                setattr(Piece._items[update['id']], key, rabbyt.lerp(current, value, dt=200))
-                
+            item = incoming_queue.get(False)
+            try:
+                update = simplejson.loads(item)
+                for (key, value) in update.iteritems():
+                    if key == 'id':
+                        continue
+                    #print Piece._items[update['id']], key, value
+                    current = getattr(Piece._items[update['id']], key)
+                    setattr(Piece._items[update['id']], key, value) #rabbyt.lerp(current, value, dt=200))
+            except ValueError:
+                print 'couldn\'t decode: ' + item
+                pass
         except Empty:
             pass
         
@@ -207,12 +223,19 @@ def run(queue):
 
 #import cProfile
 #cProfile.run('run()', 'profile.out')
-
+       
 #import pstats
 #p = pstats.Stats('profile.out')
 #p.strip_dirs().sort_stats(-1).print_stats()
-queue = Queue()
+
+from broadcastclient import client
+
+port = 9000
+incoming_queue = Queue()
+outgoing_queue = Queue()
 if __name__ == '__main__':
     freeze_support()
-    Process(target=run, args=(queue,)).start()
+    #runpool(('localhost', 8000), 4)
+    Process(target=run, args=(outgoing_queue, incoming_queue)).start()
+    Process(target=client, args=(outgoing_queue,incoming_queue)).start()
     

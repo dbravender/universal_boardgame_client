@@ -37,6 +37,7 @@ class Piece(rabbyt.Sprite):
         
     def animendcallback(self):
         self.animflag = False
+        self.drop()
     def width(self):
         return self.right - self.left
     def height(self):
@@ -53,11 +54,11 @@ class Piece(rabbyt.Sprite):
                 'x': self.x,
                 'y': self.y,
                 'rot': self.rot} 
-    def drop(self, outgoing_queue):
+    def drop(self):
         #pprint(self.to_json())
         #print simplejson.dumps(self.to_json())
         print "putting something on the queue ^^"
-        outgoing_queue.put(simplejson.dumps(self.to_json()) + "\r\n")
+        self.game.outgoing_queue.put(simplejson.dumps(self.to_json()) + "\r\n")
         
 class Game(object):
     def __init__(self, width, height, outgoing_queue):
@@ -77,13 +78,17 @@ class Game(object):
         self.outgoing_queue = outgoing_queue
         self.boards = [rabbyt.Sprite(texture='board.png')]
         for card_image in glob.glob(os.path.join('cards', '*png')):
-            self.pieces.append(Piece(texture=card_image, back=os.path.join('cards', 'backs', 'back-red-150-2.png')))
+            self.pieces.append(Piece(game=self, texture=card_image, back=os.path.join('cards', 'backs', 'back-red-150-2.png')))
 
     def update_viewport(self):
         rabbyt.set_viewport(self.size, projection=(self.viewport_x,
                                                    self.viewport_y,
                                                    (self.size[0] - self.ratio * self.z) + self.viewport_x,
                                                    self.size[1] - self.z + self.viewport_y))
+    
+    def move_to_front(self, piece):
+        self.pieces.remove(piece)
+        self.pieces.append(piece)
     
     def handle_event(self, event):
         if hasattr(event, 'pos'):
@@ -111,8 +116,7 @@ class Game(object):
             
             if self.grabbed_piece:
                #keep the list in z-order
-                self.pieces.remove(self.grabbed_piece)
-                self.pieces.append(self.grabbed_piece)
+                self.move_to_front(self.grabbed_piece)
                 #self.grabbed_piece.rgba = (1, .5, .5, .75)
                 #self.grabbed_piece.scale = rabbyt.lerp(1, 1.25, dt=100, extend="reverse")
             
@@ -161,9 +165,9 @@ class Game(object):
                     self.grabbed_piece.y = system_y + self.offset_y
                 
         elif event.type == pygame.MOUSEBUTTONUP:
-            if self.grabbed_piece:
+            if self.grabbed_piece and event.button not in (4, 5):
                 self.grabbed_piece.rgba = (1, 1, 1, 1)
-                self.grabbed_piece.drop(self.outgoing_queue)
+                self.grabbed_piece.drop()
                 # this is causing pieces to slide somewhere else when I drop them now...
                 #if pygame.key.get_mods() & pygame.KMOD_CTRL:
                 #    self.grabbed_piece.xy = rabbyt.lerp((self.grabbed_piece.x, self.grabbed_piece.y), (self.grabbed_piece.x - self.grabbed_piece.x % self.grabbed_piece.width(), self.grabbed_piece.y - self.grabbed_piece.y % self.grabbed_piece.height()), dt=200)     
@@ -201,12 +205,15 @@ def run(outgoing_queue, incoming_queue):
             item = incoming_queue.get(False)
             try:
                 update = simplejson.loads(item)
+                game.move_to_front(Piece._items[update['id']])
                 for (key, value) in update.iteritems():
                     if key == 'id':
                         continue
                     #print Piece._items[update['id']], key, value
-                    current = getattr(Piece._items[update['id']], key)
-                    setattr(Piece._items[update['id']], key, value) #rabbyt.lerp(current, value, dt=200))
+                    try:
+                        setattr(Piece._items[update['id']], key, rabbyt.lerp(current, value, dt=200))
+                    except:
+                        setattr(Piece._items[update['id']], key, value)
             except ValueError:
                 print 'couldn\'t decode: ' + item
                 pass

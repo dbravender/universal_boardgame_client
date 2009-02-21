@@ -4,10 +4,12 @@ use this to implement the dots-and-boxes game server in the future.
 Danny Yoo (dyoo@hkn.eecs.berkekey.edu)
 """
 
+from __future__ import with_statement
 from threading import *
 from Queue import Queue
 import SocketServer
-
+import simplejson
+from copy import copy
 
 class MessageRoom(Thread):
     """This class simulates a room full of people, where messages
@@ -18,17 +20,25 @@ TODO: add more documentation!
     def __init__(self):
         Thread.__init__(self)
         self._message_queue = Queue()
+        self.state_lock = RLock()
         self._listeners = []
         self._listeners_lock = RLock()
         self._shutdown = 0
         self._events = Queue()
-
+        self.state = {}
 
     def shout(self, listener, msg):
         """Shout out a message to all listeners."""
         self._message_queue.put((listener, msg))
         self._events.put("message added")
-        
+        try:
+            # keeps the last known position of any piece to send to clients who join later
+            update = simplejson.loads(msg)
+            if update.has_key('id'):
+                with self.state_lock:
+                    self.state[update['id']] = msg
+        except ValueError:
+            pass
 
     def addListener(self, listener):
         """Adds a callable 'listener' to our list of active listeners."""
@@ -124,6 +134,11 @@ class ChatThreadedServer(SocketServer.ThreadingMixIn,
 
 class ChatRequestHandler(SocketServer.StreamRequestHandler):
     def handle(self):
+        with self.server._chat_room.state_lock:
+            state_copy = copy(self.server._chat_room.state)
+            
+        for piece_state in state_copy.itervalues():
+            self._writeMsg(piece_state)
         server = self.server
         while 1:
             ## fixme: add notification of server shutdown

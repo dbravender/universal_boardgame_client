@@ -5,6 +5,7 @@ import socket
 def client(outgoing_queue, incoming_queue):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(('', 9000))
+    file_like = sock.makefile("rb")
     
     lock = Lock()
     
@@ -15,7 +16,10 @@ def client(outgoing_queue, incoming_queue):
         
     def read(sock):
         while True:
-            incoming_queue.put(sock.recv(1024))
+            line = file_like.readline()
+            if not line:    
+                raise EOFError
+            incoming_queue.put(line)
     
     Thread(target=write, args=(sock,)).start()
     t = Thread(target=read, args=(sock,))

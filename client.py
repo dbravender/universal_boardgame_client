@@ -164,6 +164,8 @@ def run():
     game = Game(window)
 
     while not window.has_exit:
+        from time import sleep
+        sleep(0.1)
         clock.tick()
         window.dispatch_events()
   
